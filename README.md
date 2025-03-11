@@ -136,11 +136,16 @@ See the deployment guide in the frontend repository for detailed instructions on
 
 ### Deploying to Hugging Face Spaces
 
-1. Create a new Space on Hugging Face
-2. Choose Docker as the SDK
-3. Upload your backend code
-4. Configure the environment variables:
-   - `CORS_ORIGINS`: Your frontend URL
+When deploying to Hugging Face Spaces, make sure to:
+
+1. Set the following environment variables in the Space settings:
+   - `TRANSFORMERS_CACHE=/tmp/huggingface_cache`
+   - `HF_HOME=/tmp/huggingface_cache`
+   - `HUGGINGFACE_HUB_CACHE=/tmp/huggingface_cache`
+
+2. Use the Docker SDK in your Space settings
+
+3. If you encounter memory issues, consider using a smaller model by changing the `model_name` in `summariser.py`
 
 ## Performance Optimizations
 
