@@ -2,21 +2,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-# Import the router from the correct location
-# Check which router file exists and use that one
-if os.path.exists("app/api/routes.py"):
-    from app.api.routes import router as api_router
-elif os.path.exists("app/routers/api.py"):
-    from app.routers.api import router as api_router
-else:
-    raise ImportError("Could not find router file")
+# Import the router
+from app.api.routes import router as api_router
 
 app = FastAPI(title="AI Content Summariser API")
 
-# Configure CORS - allow requests from the frontend
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For development - restrict this in production
+    allow_origins=[
+        "https://ai-content-summariser.vercel.app",
+        "http://localhost:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
