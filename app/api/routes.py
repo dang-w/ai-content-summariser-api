@@ -5,7 +5,8 @@ from app.services.summariser import SummariserService
 from app.services.url_extractor import URLExtractorService
 from app.services.cache import hash_text, get_cached_summary, cache_summary
 
-router = APIRouter()
+router = APIRouter(prefix="/api")
+summariser_service = SummariserService()
 
 class TextSummaryRequest(BaseModel):
     text: str = Field(..., min_length=10, description="The text to summarise")
@@ -45,30 +46,12 @@ async def summarise_text(request: TextSummaryRequest):
             return cached_summary
 
         # If not in cache, generate summary
-        summariser = SummariserService()
-        summary = summariser.summarise(
+        result = summariser_service.summarise(
             text=request.text,
             max_length=request.max_length,
             min_length=request.min_length,
             do_sample=request.do_sample,
             temperature=request.temperature
-        )
-
-        result = {
-            "original_text_length": len(request.text),
-            "summary": summary,
-            "summary_length": len(summary),
-            "source_type": "text"
-        }
-
-        # Cache the result
-        cache_summary(
-            text_hash,
-            request.max_length,
-            request.min_length,
-            request.do_sample,
-            request.temperature,
-            result
         )
 
         return result
@@ -86,8 +69,7 @@ async def summarise_url(request: URLSummaryRequest):
             raise HTTPException(status_code=422, detail="Could not extract sufficient content from the URL")
 
         # Summarise the extracted content
-        summariser = SummariserService()
-        summary = summariser.summarise(
+        result = summariser_service.summarise(
             text=content,
             max_length=request.max_length,
             min_length=request.min_length,
@@ -97,8 +79,8 @@ async def summarise_url(request: URLSummaryRequest):
 
         return {
             "original_text_length": len(content),
-            "summary": summary,
-            "summary_length": len(summary),
+            "summary": result["summary"],
+            "summary_length": len(result["summary"]),
             "source_type": "url",
             "source_url": str(request.url)
         }
@@ -106,3 +88,8 @@ async def summarise_url(request: URLSummaryRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/status")
+async def get_status():
+    """Get the current status of the summariser service"""
+    return summariser_service.get_status()
