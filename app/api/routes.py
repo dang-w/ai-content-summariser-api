@@ -31,6 +31,7 @@ class SummaryResponse(BaseModel):
     summary_length: int
     source_type: str = "text"  # "text" or "url"
     source_url: Optional[str] = None
+    metadata: Optional[dict] = None
 
 @router.post("/summarise", response_model=SummaryResponse)
 async def summarise_text(request: TextSummaryRequest):
@@ -57,7 +58,26 @@ async def summarise_text(request: TextSummaryRequest):
             temperature=request.temperature
         )
 
-        return result
+        # Format the response according to the SummaryResponse model
+        response = {
+            "original_text_length": len(request.text),
+            "summary": result["summary"],
+            "summary_length": len(result["summary"]),
+            "source_type": "text",
+            "metadata": result.get("metadata", {})
+        }
+
+        # Cache the result
+        cache_summary(
+            text_hash,
+            request.max_length,
+            request.min_length,
+            request.do_sample,
+            request.temperature,
+            response
+        )
+
+        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
