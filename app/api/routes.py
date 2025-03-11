@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field, HttpUrl
 from typing import Optional, Union
 from app.services.summariser import SummariserService
 from app.services.url_extractor import URLExtractorService
+from app.services.cache import hash_text, get_cached_summary, cache_summary
 
 router = APIRouter()
 
@@ -30,6 +31,20 @@ class SummaryResponse(BaseModel):
 @router.post("/summarise", response_model=SummaryResponse)
 async def summarise_text(request: TextSummaryRequest):
     try:
+        # Check cache first
+        text_hash = hash_text(request.text)
+        cached_summary = get_cached_summary(
+            text_hash,
+            request.max_length,
+            request.min_length,
+            request.do_sample,
+            request.temperature
+        )
+
+        if cached_summary:
+            return cached_summary
+
+        # If not in cache, generate summary
         summariser = SummariserService()
         summary = summariser.summarise(
             text=request.text,
@@ -39,12 +54,24 @@ async def summarise_text(request: TextSummaryRequest):
             temperature=request.temperature
         )
 
-        return {
+        result = {
             "original_text_length": len(request.text),
             "summary": summary,
             "summary_length": len(summary),
             "source_type": "text"
         }
+
+        # Cache the result
+        cache_summary(
+            text_hash,
+            request.max_length,
+            request.min_length,
+            request.do_sample,
+            request.temperature,
+            result
+        )
+
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

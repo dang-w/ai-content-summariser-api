@@ -1,5 +1,6 @@
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+import numpy as np  # Import NumPy first
 import torch
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 class SummariserService:
     def __init__(self):
@@ -18,22 +19,27 @@ class SummariserService:
 
         Args:
             text (str): The text to summarise
-            max_length (int): Maximum length of the summary
-            min_length (int): Minimum length of the summary
+            max_length (int): Maximum length of the summary in characters
+            min_length (int): Minimum length of the summary in characters
             do_sample (bool): Whether to use sampling for generation
             temperature (float): Sampling temperature (higher = more random)
 
         Returns:
             str: The generated summary
         """
+        # Convert character lengths to approximate token counts
+        # A rough estimate is that 1 token ≈ 4 characters in English
+        max_tokens = max(1, max_length // 4)
+        min_tokens = max(1, min_length // 4)
+
         # Ensure text is within model's max token limit
         inputs = self.tokenizer(text, return_tensors="pt", truncation=True, max_length=1024)
         inputs = inputs.to(self.device)
 
         # Set generation parameters
         generation_params = {
-            "max_length": max_length,
-            "min_length": min_length,
+            "max_length": max_tokens,
+            "min_length": min_tokens,
             "num_beams": 4,
             "length_penalty": 2.0,
             "early_stopping": True,
@@ -75,4 +81,22 @@ class SummariserService:
             )
 
         summary = self.tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+
+        # If the summary is still too long, truncate it
+        if len(summary) > max_length:
+            # Try to truncate at a sentence boundary
+            sentences = summary.split('. ')
+            truncated_summary = ''
+            for sentence in sentences:
+                if len(truncated_summary) + len(sentence) + 2 <= max_length:  # +2 for '. '
+                    truncated_summary += sentence + '. '
+                else:
+                    break
+
+            # If we couldn't even fit one sentence, just truncate at max_length
+            if not truncated_summary:
+                truncated_summary = summary[:max_length]
+
+            summary = truncated_summary.strip()
+
         return summary

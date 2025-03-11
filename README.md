@@ -49,6 +49,10 @@ The frontend application is available in a separate repository: [ai-content-summ
 git clone https://github.com/dang-w/ai-content-summariser-api.git
 cd ai-content-summariser-api
 
+# Create a virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
 # Install dependencies
 pip install -r requirements.txt
 ```
@@ -62,7 +66,63 @@ uvicorn main:app --reload
 
 The API will be available at `http://localhost:8000`.
 
-### Running with Docker
+## Testing
+
+The project includes a comprehensive test suite covering both unit and integration tests.
+
+### Installing Test Dependencies
+
+```bash
+pip install pytest pytest-cov httpx
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run tests with verbose output
+pytest -v
+
+# Run tests and generate coverage report
+pytest --cov=app tests/
+
+# Run tests and generate detailed coverage report
+pytest --cov=app --cov-report=term-missing tests/
+
+# Run specific test file
+pytest tests/test_api.py
+
+# Run tests without warnings
+pytest -W ignore::FutureWarning -W ignore::UserWarning
+```
+
+### Test Structure
+
+- **Unit Tests**: Test individual components in isolation
+  - `tests/test_summariser.py`: Tests for the summarization service
+
+- **Integration Tests**: Test API endpoints and component interactions
+  - `tests/test_api.py`: Tests for API endpoints
+
+### Mocking Strategy
+
+For faster and more reliable tests, we use mocking to avoid loading large ML models during testing:
+
+```python
+# Example of mocked test
+def test_summariser_with_mock():
+    with patch('app.services.summariser.AutoTokenizer') as mock_tokenizer_class, \
+         patch('app.services.summariser.AutoModelForSeq2SeqLM') as mock_model_class:
+        # Test implementation...
+```
+
+### Continuous Integration
+
+Tests are automatically run on pull requests and pushes to the main branch using GitHub Actions.
+
+## Running with Docker
 
 ```bash
 # Build and run with Docker
@@ -77,10 +137,18 @@ See the deployment guide in the frontend repository for detailed instructions on
 ### Deploying to Hugging Face Spaces
 
 1. Create a new Space on Hugging Face
-2. Choose FastAPI as the SDK
+2. Choose Docker as the SDK
 3. Upload your backend code
 4. Configure the environment variables:
    - `CORS_ORIGINS`: Your frontend URL
+
+## Performance Optimizations
+
+The API includes several performance optimizations:
+
+1. **Model Caching**: Models are loaded once and cached for subsequent requests
+2. **Result Caching**: Frequently requested summaries are cached to avoid redundant processing
+3. **Asynchronous Processing**: Long-running tasks are processed asynchronously
 
 ## Development
 

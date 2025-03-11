@@ -30,6 +30,10 @@ async def health_check():
 from app.api.routes import router as api_router
 app.include_router(api_router, prefix="/api")
 
+# Import and include async API routes
+from app.api.async_routes import router as async_router
+app.include_router(async_router, prefix="/api/async")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
