@@ -4,6 +4,11 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import time
 import os
 import re
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class SummariserService:
     def __init__(self):
@@ -22,8 +27,8 @@ class SummariserService:
             "literary": "t5-large"
         }
 
-        # Choose the most appropriate model
-        model_name = model_options["literary"]  # Better for literary text
+        # Choose the most appropriate model - BART works better for web content
+        model_name = model_options["general"]  # Use BART for better web content summarization
 
         # Update loading status
         self.model_loading_status["is_loading"] = True
@@ -153,6 +158,8 @@ class SummariserService:
         Returns:
             dict: The generated summary and processing metadata
         """
+        logger.info(f"Starting summarization of text with {len(text)} characters")
+
         # Reset and start job tracking
         self.current_job = {
             "in_progress": True,
@@ -174,6 +181,10 @@ class SummariserService:
         }
 
         try:
+            # Preprocess the text to focus on main content
+            text = self.preprocess_text(text)
+            logger.info(f"After preprocessing: {len(text)} characters")
+
             # Tokenization step
             inputs = self.tokenizer(text, return_tensors="pt", max_length=1024, truncation=True)
             input_ids = inputs.input_ids.to(self.device)
@@ -186,17 +197,19 @@ class SummariserService:
             self.current_job["stage"] = "Generating summary"
             self.current_job["progress"] = 30
 
-            # Enhanced generation parameters
+            # Enhanced generation parameters for better web content summarization
             summary_ids = self.model.generate(
                 input_ids,
                 max_length=max_length,
                 min_length=min_length,
                 do_sample=do_sample,
                 temperature=temperature,
-                num_beams=4,
+                num_beams=5,  # Increased from 4 to 5
                 early_stopping=True,
                 no_repeat_ngram_size=3,
                 length_penalty=2.0,
+                top_k=50,  # Added for better quality
+                top_p=0.95,  # Added for better quality
             )
 
             # Update job status
@@ -212,9 +225,10 @@ class SummariserService:
             result["metadata"]["output_word_count"] = len(summary.split())
             result["metadata"]["compression_ratio"] = round(len(summary.split()) / self.current_job["input_word_count"] * 100, 1)
 
+            logger.info(f"Generated summary with {len(summary)} characters")
+
         except Exception as e:
-            # Handle errors gracefully
-            print(f"Error during summarization: {str(e)}")
+            logger.error(f"Error during summarization: {str(e)}")
             result["summary"] = "An error occurred during summarization. Please try again with a shorter text or different parameters."
             result["error"] = str(e)
         finally:
@@ -224,3 +238,25 @@ class SummariserService:
             self.current_job["progress"] = 100
 
         return result
+
+    def preprocess_text(self, text):
+        """Preprocess text to improve summarization quality."""
+        # Remove excessive whitespace
+        text = re.sub(r'\s+', ' ', text)
+
+        # Remove common web page boilerplate text
+        text = re.sub(r'Skip to (content|main).*?»', '', text)
+        text = re.sub(r'Search for:.*?Search', '', text)
+        text = re.sub(r'Menu.*?Resources', '', text, flags=re.DOTALL)
+
+        # Remove comment sections (often start with phrases like "X responses to")
+        text = re.sub(r'\d+ responses to.*?$', '', text, flags=re.DOTALL)
+
+        # Remove form fields and subscription prompts
+        text = re.sub(r'(Your email address will not be published|Required fields are marked).*?$', '', text, flags=re.DOTALL)
+
+        # Focus on the first part of very long texts (likely the main content)
+        if len(text) > 10000:
+            text = text[:10000]
+
+        return text

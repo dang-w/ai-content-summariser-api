@@ -4,6 +4,9 @@ from typing import Optional, Union
 from app.services.summariser import SummariserService
 from app.services.url_extractor import URLExtractorService
 from app.services.cache import hash_text, get_cached_summary, cache_summary
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
 summariser_service = SummariserService()
@@ -62,11 +65,15 @@ async def summarise_text(request: TextSummaryRequest):
 async def summarise_url(request: URLSummaryRequest):
     try:
         # Extract content from URL
+        logger.info(f"Extracting content from URL: {request.url}")
         url_extractor = URLExtractorService()
         content = await url_extractor.extract_content(str(request.url))
 
         if not content or len(content) < 100:
+            logger.warning(f"Insufficient content extracted from URL: {request.url}")
             raise HTTPException(status_code=422, detail="Could not extract sufficient content from the URL")
+
+        logger.info(f"Extracted {len(content)} characters from {request.url}")
 
         # Summarise the extracted content
         result = summariser_service.summarise(
@@ -77,16 +84,19 @@ async def summarise_url(request: URLSummaryRequest):
             temperature=request.temperature
         )
 
+        # Create a more structured response
         return {
             "original_text_length": len(content),
             "summary": result["summary"],
             "summary_length": len(result["summary"]),
             "source_type": "url",
-            "source_url": str(request.url)
+            "source_url": str(request.url),
+            "metadata": result.get("metadata", {})
         }
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Error processing URL {request.url}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/status")

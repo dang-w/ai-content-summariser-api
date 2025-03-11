@@ -11,9 +11,17 @@ ENV TRANSFORMERS_CACHE=/tmp/huggingface_cache
 ENV HF_HOME=/tmp/huggingface_cache
 ENV HUGGINGFACE_HUB_CACHE=/tmp/huggingface_cache
 
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  build-essential \
+  && rm -rf /var/lib/apt/lists/*
+
 # Copy requirements first for better caching
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+  pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application
 COPY . .
