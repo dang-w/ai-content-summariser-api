@@ -16,5 +16,23 @@ jobs:
       - name: Push to hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push https://dang-w:$HF_TOKEN@huggingface.co/spaces/dang-w/dang-w/ai-content-summariser-api main
-        
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          echo "Pushing to Hugging Face Space..."
+          if git push https://dang-w:$HF_TOKEN@huggingface.co/spaces/dang-w/ai-content-summariser-api main; then
+            echo "Successfully pushed to Hugging Face Space"
+          else
+            echo "Failed to push to Hugging Face Space"
+            exit 1
+          fi
+      - name: Check deployment
+        run: |
+          echo "Waiting for deployment to complete..."
+          sleep 60  # Give some time for the deployment to complete
+          if curl -s -o /dev/null -w "%{http_code}" https://huggingface.co/spaces/dang-w/ai-content-summariser-api | grep -q "200\|301\|302"; then
+            echo "Deployment successful!"
+          else
+            echo "Deployment may have failed. Please check manually."
+          fi
+
