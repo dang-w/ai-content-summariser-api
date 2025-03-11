@@ -1,0 +1,50 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.env
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Local development settings
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Hugging Face cache
+.huggingface/
+huggingface_cache/
+
+# Model files (if needed)
+*.pt
+*.bin
+*.model
+
+# Logs
+*.log
+logs/
+
+# Coverage reports
+.coverage
+htmlcov/
+coverage.xml
